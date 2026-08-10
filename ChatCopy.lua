@@ -3,11 +3,17 @@
 
 local addonName, addon = ...
 
+-- Forward-declared so the event handler below can reference them
+-- before their definitions later in the file.
+local CreateChatCopyWindow, OpenChatCopyWindow, CleanChatContent
+
 -- Create a frame to handle slash commands
 local ChatCopyFrame = CreateFrame("Frame")
 ChatCopyFrame:RegisterEvent("ADDON_LOADED")
-ChatCopyFrame:SetScript("OnEvent", function(self, event, addonName)
-    if addonName == "ChatCopy" then
+ChatCopyFrame:SetScript("OnEvent", function(self, event, loadedAddonName)
+    if loadedAddonName == "ChatCopy" then
+        self:UnregisterEvent("ADDON_LOADED")
+
         -- Register slash command
         SLASH_CHATCOPY1 = "/chatcopy"
         SLASH_CHATCOPY2 = "/cc"
@@ -17,7 +23,7 @@ ChatCopyFrame:SetScript("OnEvent", function(self, event, addonName)
 
         -- Create the copy window
         CreateChatCopyWindow()
-        
+
         -- Add chat command help
         DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Chat Copy Addon loaded. Use /chatcopy or /cc to copy all chat content.|r")
     end
@@ -49,7 +55,10 @@ function CreateChatCopyWindow()
     -- Create the main copy window
     copyWindow = CreateFrame("Frame", "ChatCopyWindow", nil, addBackdrop("BasicFrameTemplateWithInset"))
     copyWindow:SetSize(500, 400)
-    copyWindow:SetPoint("CENTER", UIParent, 0, 0)
+    -- Anchored by a corner (not CENTER) so resizing holds TOPLEFT fixed and
+    -- grows from the BOTTOMRIGHT grip instead of expanding symmetrically
+    -- from the center, which caused a large jump the instant sizing started.
+    copyWindow:SetPoint("TOPLEFT", UIParent, "CENTER", -250, 200)
     copyWindow:SetFrameStrata("HIGH")
     copyWindow:SetFrameLevel(100)
     copyWindow:EnableMouse(true)
@@ -84,7 +93,7 @@ function CreateChatCopyWindow()
     resizeButton:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     resizeButton:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
     resizeButton:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
-    resizeButton:SetScript("OnMouseDown", function(self) copyWindow:StartSizing() end)
+    resizeButton:SetScript("OnMouseDown", function(self) copyWindow:StartSizing("BOTTOMRIGHT") end)
     resizeButton:SetScript("OnMouseUp", function(self) copyWindow:StopMovingOrSizing() end)
     
     -- Scroll frame for the edit box
@@ -160,19 +169,14 @@ function CleanChatContent(message)
     for _, format in ipairs(timeFormats) do
         local singular, plural = format[1], format[2]
         local pattern = "(%d+) |4" .. singular .. ":" .. plural .. ";"
-        if message:match(pattern) then
-            local number = message:match(pattern)
-            if number then
-                local num = tonumber(number)
-                local replacement
-                if num == 0 or num == 1 then
-                    replacement = number .. " " .. singular
-                else
-                    replacement = number .. " " .. plural
-                end
-                message = message:gsub(pattern, replacement)
+        message = message:gsub(pattern, function(number)
+            local num = tonumber(number)
+            if num == 0 or num == 1 then
+                return number .. " " .. singular
+            else
+                return number .. " " .. plural
             end
-        end
+        end)
     end
     
     return message
@@ -201,7 +205,10 @@ end
 
 -- Function to open the chat copy window with content
 function OpenChatCopyWindow()
-    local chatContent = ""
+    -- Build lines in a table and concat once at the end, rather than
+    -- repeatedly appending to a string (which reallocates the whole
+    -- buffer on every message across up to 10 frames x 500 messages).
+    local lines = {}
     local chatFrames = {
         ChatFrame1, ChatFrame2, ChatFrame3, ChatFrame4, ChatFrame5,
         ChatFrame6, ChatFrame7, ChatFrame8, ChatFrame9, ChatFrame10
@@ -214,51 +221,42 @@ function OpenChatCopyWindow()
             if numMessages and numMessages > 0 then
                 -- Limit to last 500 messages to avoid overwhelming the UI
                 local startLine = math.max(1, numMessages - 500)
-                
+
                 if frameIndex > 1 and startLine < numMessages then
-                    chatContent = chatContent .. "\n--- Chat Frame " .. frameIndex .. " ---\n"
+                    lines[#lines + 1] = ""
+                    lines[#lines + 1] = "--- Chat Frame " .. frameIndex .. " ---"
                 end
-                
+
                 for i = startLine, numMessages do
-                    local success, message, r, g, b, id, _, _, messageType = pcall(frame.GetMessageInfo, frame, i)
+                    -- GetMessageInfo only returns message, r, g, b, id - it does
+                    -- not expose the originating chat event type, so per-type
+                    -- prefixes ([SAY], [GUILD], etc.) aren't recoverable here.
+                    local success, message = pcall(frame.GetMessageInfo, frame, i)
                     if success and message and message ~= "" then
-                        -- Clean up the message
-                        message = CleanChatContent(message)
-
-                        -- Add message type prefix if available
-                        local prefix = ""
-                        if messageType == "SYSTEM" then
-                            prefix = "[SYSTEM] "
-                        elseif messageType == "CHAT_MSG_SAY" then
-                            prefix = "[SAY] "
-                        elseif messageType == "CHAT_MSG_YELL" then
-                            prefix = "[YELL] "
-                        elseif messageType == "CHAT_MSG_PARTY" or messageType == "CHAT_MSG_PARTY_LEADER" then
-                            prefix = "[PARTY] "
-                        elseif messageType == "CHAT_MSG_RAID" or messageType == "CHAT_MSG_RAID_LEADER" then
-                            prefix = "[RAID] "
-                        elseif messageType == "CHAT_MSG_GUILD" then
-                            prefix = "[GUILD] "
-                        elseif messageType == "CHAT_MSG_WHISPER" or messageType == "CHAT_MSG_WHISPER_INFORM" then
-                            prefix = "[WHISPER] "
-                        elseif messageType == "CHAT_MSG_CHANNEL" then
-                            prefix = "[CHANNEL] "
-                        end
-
-                        chatContent = chatContent .. prefix .. message .. "\n"
+                        lines[#lines + 1] = CleanChatContent(message)
                     end
                 end
             end
         end
     end
 
+    local chatContent = table.concat(lines, "\n")
+    if chatContent ~= "" then
+        chatContent = chatContent .. "\n"
+    end
+
     if chatContent ~= "" and copyWindow then
         local editBox = copyWindow.editBox
-        
+
+        -- Ensure the EditBox matches the current scroll frame width; its
+        -- creation-time width may have been resolved before the window's
+        -- layout was fully computed.
+        editBox:SetWidth(copyWindow.scrollFrame:GetWidth())
+
         -- Calculate and set the proper height for the EditBox
         local properHeight = CalculateEditBoxHeight(chatContent, editBox)
         editBox:SetHeight(properHeight)
-        
+
         -- Set the content in the edit box
         editBox:SetText(chatContent)
 

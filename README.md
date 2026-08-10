@@ -6,7 +6,6 @@ A World of Warcraft addon that allows you to easily copy chat content from your 
 
 - Opens a resizable window displaying all visible chat content from all chat frames
 - Easy text selection and copying with standard keyboard shortcuts (Ctrl+A, Ctrl+C)
-- Preserves message types with prefixes (System, Say, Yell, Party, Raid, Guild, Whisper, Channel)
 - Handles up to 500 messages per chat frame
 - Cleans up problematic escape sequences and formatting codes
 - Simple slash commands: `/chatcopy` or `/cc`
@@ -52,21 +51,6 @@ A World of Warcraft addon that allows you to easily copy chat content from your 
 - **Close**: Click the "Close" button or press Escape
 - **Scroll**: Use mouse wheel or scroll bar to navigate through content
 
-## Message Format
-
-Messages are formatted with prefixes indicating their type:
-
-```
-[SYSTEM] System message here
-[SAY] Player said something
-[YELL] Player yelled something
-[PARTY] Party member: message
-[RAID] Raid member: message
-[GUILD] Guild member: message
-[WHISPER] Someone whispered to you
-[CHANNEL] Channel message
-```
-
 ## Limitations
 
 - Timestamps are not included
@@ -87,9 +71,8 @@ The addon works by:
 1. Iterating through all available chat frames (ChatFrame1-10)
 2. Collecting messages from visible frames using `GetMessageInfo`
 3. Cleaning up escape sequences and formatting codes
-4. Adding message type prefixes for context
-5. Calculating appropriate EditBox height based on content
-6. Displaying content in a scrollable, resizable window for manual copying
+4. Calculating appropriate EditBox height based on content
+5. Displaying content in a scrollable, resizable window for manual copying
 
 ## License
 
@@ -97,4 +80,6 @@ This addon is provided as-is for personal use.
 
 ## Version History
 
-- **Latest**: Added resizable window functionality, improved message cleanup, optimized for default WoW UI
+- **2026-08-10**: Fixed the resize handle causing the window to jump in size the instant you clicked it (was anchored by center instead of a corner); removed the non-functional per-type message prefixes ([SAY], [GUILD], etc. never actually appeared - `GetMessageInfo` doesn't expose that data); fixed a bug where cleanup of in-game time strings (e.g. "3 days") could misfire on messages with more than one such string; improved performance when copying frames with many messages
+- **2026-01-01**: Added window resizing and moving
+- **2025-12-03**: Initial version with basic copy feature
