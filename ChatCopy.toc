@@ -1,4 +1,4 @@
-## Interface: 120007, 121000
+## Interface: 120100, 120105
 ## Title: Chat Copy
 ## Notes: Allows copying all visible chat content
 ## Author: Ginutty
