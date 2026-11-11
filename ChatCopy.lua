@@ -6,6 +6,25 @@ local addonName, addon = ...
 -- Forward-declared so the event handler below can reference them
 -- before their definitions later in the file.
 local CreateChatCopyWindow, OpenChatCopyWindow, CleanChatContent
+local ClearAllChatFrames, PrintChatCopyHelp
+
+-- Clear the history of every chat window (irreversible)
+function ClearAllChatFrames()
+    for i = 1, NUM_CHAT_WINDOWS or 10 do
+        local frame = _G["ChatFrame" .. i]
+        if frame then
+            frame:Clear()
+        end
+    end
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Chat Copy: chat history cleared.|r")
+end
+
+function PrintChatCopyHelp()
+    DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Chat Copy commands:|r")
+    DEFAULT_CHAT_FRAME:AddMessage("  /cc - open the copy window")
+    DEFAULT_CHAT_FRAME:AddMessage("  /cc clear - clear all chat windows")
+    DEFAULT_CHAT_FRAME:AddMessage("  /cc help - show this help")
+end
 
 -- Create a frame to handle slash commands
 local ChatCopyFrame = CreateFrame("Frame")
@@ -17,15 +36,25 @@ ChatCopyFrame:SetScript("OnEvent", function(self, event, loadedAddonName)
         -- Register slash command
         SLASH_CHATCOPY1 = "/chatcopy"
         SLASH_CHATCOPY2 = "/cc"
-        SlashCmdList["CHATCOPY"] = function()
-            OpenChatCopyWindow()
+        SlashCmdList["CHATCOPY"] = function(msg)
+            local cmd = strlower(strtrim(msg or ""))
+            if cmd == "" then
+                OpenChatCopyWindow()
+            elseif cmd == "clear" then
+                ClearAllChatFrames()
+            elseif cmd == "help" then
+                PrintChatCopyHelp()
+            else
+                DEFAULT_CHAT_FRAME:AddMessage("|cFFFF0000Chat Copy: unknown command '" .. cmd .. "'.|r")
+                PrintChatCopyHelp()
+            end
         end
 
         -- Create the copy window
         CreateChatCopyWindow()
 
         -- Add chat command help
-        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Chat Copy Addon loaded. Use /chatcopy or /cc to copy all chat content.|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cFF00FF00Chat Copy Addon loaded. Use /cc to copy chat, /cc clear to clear all chat windows, /cc help for help.|r")
     end
 end)
 
@@ -209,10 +238,10 @@ function OpenChatCopyWindow()
     -- repeatedly appending to a string (which reallocates the whole
     -- buffer on every message across up to 10 frames x 500 messages).
     local lines = {}
-    local chatFrames = {
-        ChatFrame1, ChatFrame2, ChatFrame3, ChatFrame4, ChatFrame5,
-        ChatFrame6, ChatFrame7, ChatFrame8, ChatFrame9, ChatFrame10
-    }
+    local chatFrames = {}
+    for i = 1, NUM_CHAT_WINDOWS or 10 do
+        chatFrames[i] = _G["ChatFrame" .. i]
+    end
 
     -- Get content from all chat frames
     for frameIndex, frame in ipairs(chatFrames) do

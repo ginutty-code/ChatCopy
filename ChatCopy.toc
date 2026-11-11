@@ -1,8 +1,8 @@
-## Interface: 120100, 120105
+## Interface: 120105, 120107
 ## Title: Chat Copy
 ## Notes: Allows copying all visible chat content
 ## Author: Ginutty
-## Version: 1.2.0
+## Version: 1.3.0
 ## IconTexture: 2056011
 
 ChatCopy.lua

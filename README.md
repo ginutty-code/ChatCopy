@@ -9,6 +9,7 @@ A World of Warcraft addon that allows you to easily copy chat content from your 
 - Handles up to 500 messages per chat frame
 - Cleans up problematic escape sequences and formatting codes
 - Simple slash commands: `/chatcopy` or `/cc`
+- `/cc clear` clears the history of all chat windows at once
 - Resizable window with drag-to-move functionality
 - Scrollable content area for long chat histories
 - Works with default WoW UI
@@ -43,6 +44,12 @@ A World of Warcraft addon that allows you to easily copy chat content from your 
 3. The text will be automatically selected (or press Ctrl+A to select all)
 4. Press Ctrl+C to copy the content
 5. Paste it anywhere outside the game (notepad, discord, etc.) using Ctrl+V
+
+### Commands
+
+- `/cc` or `/chatcopy` - open the copy window
+- `/cc clear` - clear the history of all chat windows (cannot be undone)
+- `/cc help` - list commands
 
 ### Window Controls
 
@@ -79,6 +86,8 @@ The addon works by:
 This addon is provided as-is for personal use.
 
 ## Version History
+
+- **1.3.0**: Added `/cc clear` to clear all chat windows and `/cc help` (suggested by a user); unknown arguments now show help instead of opening the window; updated interface versions to 120105 and 120107
 
 - **2026-08-10**: Fixed the resize handle causing the window to jump in size the instant you clicked it (was anchored by center instead of a corner); removed the non-functional per-type message prefixes ([SAY], [GUILD], etc. never actually appeared - `GetMessageInfo` doesn't expose that data); fixed a bug where cleanup of in-game time strings (e.g. "3 days") could misfire on messages with more than one such string; improved performance when copying frames with many messages
 - **2026-01-01**: Added window resizing and moving
